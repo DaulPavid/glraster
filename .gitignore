@@ -1,0 +1,17 @@
+#
+# Generated directories to exclude
+#
+build/*
+.vscode/*
+
+#
+# Generated files to exclude
+#
+*.bin
+*.swp
+*.so
+*.lib
+*.a
+*.ini
+*.json
+tags
