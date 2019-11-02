@@ -5,28 +5,84 @@
 /// \brief Symbol raster display and dialog
 ///
 
-#include "ui.h"
+#include <stdlib.h>
+#include <stdarg.h>
+#include <string.h>
 
-#include "GL/gl3w.h"
-#include <GLFW/glfw3.h>
-
-#define NK_INCLUDE_FIXED_TYPES
-#define NK_INCLUDE_STANDARD_IO
-#define NK_INCLUDE_STANDARD_VARARGS
-#define NK_INCLUDE_DEFAULT_ALLOCATOR
-#define NK_INCLUDE_VERTEX_BUFFER_OUTPUT
-#define NK_INCLUDE_FONT_BAKING
-#define NK_INCLUDE_DEFAULT_FONT
-#define NK_IMPLEMENTATION
-#define NK_GLFW_GL3_IMPLEMENTATION
-#define NK_KEYSTATE_BASED_INPUT
+#include "display.h"
 #include "nuklear.h"
-#include "nuklear_glfw_gl3.h"
 
-#define WINDOW_WIDTH 1200
-#define WINDOW_HEIGHT 800
+static const char* raster_vert_shader =
+    ""
+    "";
 
-#define MAX_VERTEX_BUFFER 512 * 1024
-#define MAX_ELEMENT_BUFFER 128 * 1024
+static const char* raster_frag_shader =
+    "";
 
+struct raster_display*
+raster_display_init (struct nk_context* ctx, int w, int h)
+{
+    struct raster_display* display = malloc(sizeof(struct raster_display));
 
+    display->ctx = ctx;
+
+    display->frame_length = 32;
+    display->frame_offset = 0;
+    display->bits_per_symbol = 1;
+
+    display->zoom_factor = 1.2f;
+
+    display->w = w;
+    display->h = h;
+
+    return display;
+}
+
+void
+raster_display_free (struct raster_display* display)
+{
+    free(display);
+}
+
+void
+raster_display_draw_dialog (struct raster_display* display)
+{
+    struct nk_context *ctx = display->ctx;
+
+    nk_flags flags = 0
+        | NK_WINDOW_BORDER
+        | NK_WINDOW_MOVABLE
+        | NK_WINDOW_SCALABLE
+        | NK_WINDOW_MINIMIZABLE
+        | NK_WINDOW_TITLE;
+
+    if (nk_begin(ctx, "Options", nk_rect(50, 50, 300, 300), flags))
+    {
+        nk_layout_row_begin(ctx, NK_STATIC, 40, 1);
+        {
+            nk_layout_row_push(ctx, 40);
+            nk_property_int(ctx, "Frame length:", 1, &display->frame_length,
+                            MAX_FRAME_LEN, 1, 1);
+
+            nk_layout_row_push(ctx, 40);
+            nk_property_int(ctx, "Frame offset:", 0, &display->frame_offset,
+                            display->frame_length, 1, 1);
+
+            nk_layout_row_push(ctx, 40);
+            nk_property_int(ctx, "Bits per symbol:", 1,
+                            &display->bits_per_symbol, MAX_BITS_PER_SYM, 1, 1);
+        }
+        nk_layout_row_end(ctx);
+    }
+    nk_end(ctx);
+}
+
+void
+raster_display_draw (struct raster_display* display)
+{
+}
+
+void
+raster_display_tick (struct raster_display* display)
+{
+}
