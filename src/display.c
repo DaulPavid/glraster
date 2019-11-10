@@ -22,13 +22,13 @@ static const char* raster_frag_shader =
 struct raster_display*
 raster_display_init (struct nk_context* ctx, int w, int h)
 {
-    struct raster_display* display = malloc(sizeof(struct raster_display));
+    struct raster_display *display = malloc(sizeof(struct raster_display));
 
     display->ctx = ctx;
 
     display->frame_length = 32;
     display->frame_offset = 0;
-    display->bits_per_symbol = 1;
+    display->frame_bps = 1;
 
     display->zoom_factor = 1.2f;
 
@@ -61,16 +61,19 @@ raster_display_draw_dialog (struct raster_display* display)
         nk_layout_row_begin(ctx, NK_STATIC, 40, 1);
         {
             nk_layout_row_push(ctx, 40);
-            nk_property_int(ctx, "Frame length:", 1, &display->frame_length,
+            nk_property_int(ctx, "Frame length:", 1,
+                            &display->frame_length,
                             MAX_FRAME_LEN, 1, 1);
 
             nk_layout_row_push(ctx, 40);
-            nk_property_int(ctx, "Frame offset:", 0, &display->frame_offset,
+            nk_property_int(ctx, "Frame offset:", 0,
+                            &display->frame_offset,
                             display->frame_length, 1, 1);
 
             nk_layout_row_push(ctx, 40);
-            nk_property_int(ctx, "Bits per symbol:", 1,
-                            &display->bits_per_symbol, MAX_BITS_PER_SYM, 1, 1);
+            nk_property_int(ctx, "Frame bps:", 1,
+                            &display->frame_bps,
+                            MAX_FRAME_BPS, 1, 1);
         }
         nk_layout_row_end(ctx);
     }

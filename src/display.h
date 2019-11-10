@@ -11,7 +11,7 @@
 #include <GLFW/glfw3.h>
 
 #define MAX_FRAME_LEN 1048576
-#define MAX_BITS_PER_SYM 1024
+#define MAX_FRAME_BPS 1024
 
 struct raster_display
 {
@@ -19,7 +19,7 @@ struct raster_display
 
     int frame_length;
     int frame_offset;
-    int bits_per_symbol;
+    int frame_bps;
 
     float zoom_factor;
 
