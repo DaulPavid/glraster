@@ -28,7 +28,7 @@ list(APPEND GLRASTER_LIBRARIES
 ###############################
 list(APPEND GLRASTER_SOURCES
     display.c
-    parser.c
+    file_reader.c
     main.c
 )
 
