@@ -58,24 +58,17 @@ raster_display_draw_dialog (struct raster_display* display)
 
     if (nk_begin(ctx, "Options", nk_rect(50, 50, 300, 300), flags))
     {
-        nk_layout_row_begin(ctx, NK_STATIC, 40, 1);
-        {
-            nk_layout_row_push(ctx, 40);
-            nk_property_int(ctx, "Frame length:", 1,
-                            &display->frame_length,
-                            MAX_FRAME_LEN, 1, 1);
+        nk_layout_row_dynamic(ctx, 40, 1);
+        nk_property_int(ctx, "Frame length:", 1, &display->frame_length,
+                        MAX_FRAME_LEN, 1, 1);
 
-            nk_layout_row_push(ctx, 40);
-            nk_property_int(ctx, "Frame offset:", 0,
-                            &display->frame_offset,
-                            display->frame_length, 1, 1);
+        nk_layout_row_dynamic(ctx, 40, 1);
+        nk_property_int(ctx, "Frame offset:", 0, &display->frame_offset,
+                        display->frame_length, 1, 1);
 
-            nk_layout_row_push(ctx, 40);
-            nk_property_int(ctx, "Frame bps:", 1,
-                            &display->frame_bps,
-                            MAX_FRAME_BPS, 1, 1);
-        }
-        nk_layout_row_end(ctx);
+        nk_layout_row_dynamic(ctx, 40, 1);
+        nk_property_int(ctx, "Frame bps:", 1, &display->frame_bps,
+                        MAX_FRAME_BPS, 1, 1);
     }
     nk_end(ctx);
 }
@@ -88,4 +81,6 @@ raster_display_draw (struct raster_display* display)
 void
 raster_display_tick (struct raster_display* display)
 {
+    struct nk_context *ctx = display->ctx;
+    struct nk_input *input = &ctx->input;
 }

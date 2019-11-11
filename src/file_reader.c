@@ -12,7 +12,7 @@
 #include "file_reader.h"
 
 static int
-file_parser_size (struct file_parser* parser)
+file_reader_size (struct file_reader* parser)
 {
     FILE *fp = fopen(parser->file_path, "rb");
     if (fp == NULL)
@@ -36,10 +36,11 @@ file_parser_size (struct file_parser* parser)
     }
 
     parser->file_size = file_size;
+    return 0;
 }
 
 static int
-file_parser_read (struct file_parser* parser)
+file_reader_read (struct file_reader* parser)
 {
     FILE *fp = fopen(parser->file_path, "rb");
 
@@ -55,16 +56,18 @@ file_parser_read (struct file_parser* parser)
     fread(parser->buffer, 1, parser->buffer_size, fp);
 
     fclose(fp);
+
+    return 0;
 }
 
-struct file_parser*
-file_parser_init (const char* file_path, size_t buffer_size)
+struct file_reader*
+file_reader_init (const char* file_path, size_t buffer_size)
 {
-    struct file_parser *parser = malloc(sizeof(struct file_parser));
+    struct file_reader *parser = malloc(sizeof(struct file_reader));
 
     strncpy(parser->file_path, file_path, MAX_FILE_LEN);
 
-    if (file_parser_size(parser) < 0)
+    if (file_reader_size(parser) < 0)
     {
         free(parser);
         return NULL;
@@ -80,19 +83,20 @@ file_parser_init (const char* file_path, size_t buffer_size)
 }
 
 void
-file_parser_free (struct file_parser* parser)
+file_reader_free (struct file_reader* parser)
 {
     free(parser->buffer);
     free(parser);
 }
 
 void
-file_parser_tick (struct file_parser* parser)
+file_reader_tick (struct file_reader* parser)
 {
-    if ((parser->file_offset + parser->buffer_size) > parser->file_size)
+    size_t offset = parser->file_offset + parser->buffer_size;
+    if (offset > parser->file_size)
     {
-        parser->file_offset = parser->file_size - parser->buffer_size - 1;
+        parser->file_offset = parser->file_size - parser->buffer_size;
     }
 
-    file_parser_read(parser);
+    file_reader_read(parser);
 }

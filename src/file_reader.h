@@ -18,7 +18,7 @@
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-struct file_parser
+struct file_reader
 {
     char file_path[MAX_FILE_LEN];
 
@@ -30,7 +30,7 @@ struct file_parser
     char* buffer;
 };
 
-struct file_parser* file_parser_init (const char* file_path, size_t buffer_size);
+struct file_reader* file_reader_init (const char* file_path, size_t buffer_size);
 
-void file_parser_free (struct file_parser* parser);
-void file_parser_tick (struct file_parser* parser);
+void file_reader_free (struct file_reader* parser);
+void file_reader_tick (struct file_reader* parser);

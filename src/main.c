@@ -2,7 +2,7 @@
 /// This file is part of glraster.
 ///
 /// \file main.c
-/// \brief Main application
+/// \brief Main application and event loop
 ///
 
 #include <stdio.h>
@@ -10,14 +10,18 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <string.h>
-#include <assert.h>
-#include <math.h>
-#include <limits.h>
-#include <time.h>
 
+#include "file_reader.h"
+#include "display.h"
+
+// Program options
+#include <getopt.h>
+
+// OpenGL / GLFW
 #include "GL/gl3w.h"
 #include <GLFW/glfw3.h>
 
+// Nuklear UI
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
 #define NK_INCLUDE_STANDARD_VARARGS
@@ -31,174 +35,190 @@
 #include "nuklear.h"
 #include "nuklear_glfw_gl3.h"
 
-#define WINDOW_WIDTH 1200
-#define WINDOW_HEIGHT 800
+#define DEFAULT_WINDOW_PREFIX "glraster"
 
-#define MAX_VERTEX_BUFFER 512 * 1024
+#define DEFAULT_WINDOW_W 1024
+#define DEFAULT_WINDOW_H 768
+
+#define DEFAULT_BUFFER_SIZE 512 * 1024;
+
+#define MAX_TITLE_LEN 128
+#define MAX_VERTEX_BUFFER 128 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
 
-/* ===============================================================
- *
- *                          EXAMPLE
- *
- * ===============================================================*/
-/* This are some code examples to provide a small overview of what can be
- * done with this library. To try out an example uncomment the defines */
-/*#define INCLUDE_ALL */
-/*#define INCLUDE_STYLE */
-/*#define INCLUDE_CALCULATOR */
-#define INCLUDE_OVERVIEW
-/*#define INCLUDE_NODE_EDITOR */
-
-#ifdef INCLUDE_ALL
-  #define INCLUDE_STYLE
-  #define INCLUDE_CALCULATOR
-  #define INCLUDE_OVERVIEW
-  #define INCLUDE_NODE_EDITOR
-#endif
-
-#ifdef INCLUDE_STYLE
-  #include "../style.c"
-#endif
-#ifdef INCLUDE_CALCULATOR
-  #include "../calculator.c"
-#endif
-#ifdef INCLUDE_OVERVIEW
-  #include "../overview.c"
-#endif
-#ifdef INCLUDE_NODE_EDITOR
-  #include "../node_editor.c"
-#endif
-
-/* ===============================================================
- *
- *                          DEMO
- *
- * ===============================================================*/
-static void error_callback(int e, const char *d)
-{printf("Error %d: %s\n", e, d);}
-
-int main(void)
+static void
+glfw_error_callback(int error_code, const char* msg)
 {
-    /* Platform */
-    static GLFWwindow *win;
-    int width = 0, height = 0;
-    struct nk_context *ctx;
-    struct nk_colorf bg;
+    fprintf(stderr, "[FAIL] - Error code = %d: %s\n", error_code, msg);
+}
 
-    /* GLFW */
-    glfwSetErrorCallback(error_callback);
-    if (!glfwInit()) {
-        fprintf(stdout, "[GFLW] failed to init!\n");
-        exit(1);
+static void
+print_help()
+{
+    fprintf(stdout, "  glraster usage / options      \n"
+                    "--------------------------------\n"
+                    " -f  --file    :    Input file  \n"
+                    " -s  --size    :    Buffer size \n"
+                    " -h  --help    :    Print help  \n");
+}
+
+int
+main(int argc, char* argv[])
+{
+    static struct option option_list[] =
+    {
+        {"file", required_argument, 0, 'f'},
+        {"size", required_argument, 0, 's'},
+        {"help", no_argument,       0, 'h'}
+    };
+
+    //
+    // CLI arguments
+    //
+    char file_path[MAX_FILE_LEN] = "\0";
+
+    long int buffer_size = DEFAULT_BUFFER_SIZE;
+
+    while (1)
+    {
+        int option_index = 0;
+        int opt = getopt_long(argc, argv, "f:s:h", option_list, &option_index);
+
+        if (opt == -1)
+        {
+            break;
+        }
+
+        switch (opt)
+        {
+            case 'f':
+                strncpy(file_path, optarg, MAX_FILE_LEN);
+                break;
+            case 's':
+                buffer_size = strtol(optarg, NULL, 10);
+                break;
+            case 'h':
+            case '?': print_help(); return EXIT_SUCCESS;
+            default:
+                abort();
+        }
     }
+
+    if (strlen(file_path) <= 0)
+    {
+        fprintf(stderr, "[FAIL] - No input file provided\n");
+
+        print_help();
+        return EXIT_FAILURE;
+    }
+
+    struct file_reader *reader = file_reader_init(file_path, buffer_size);
+    if (!reader)
+    {
+        fprintf(stderr, "[FAIL] - Failed to read input file in argument\n");
+        return EXIT_FAILURE;
+    }
+
+    //
+    // Platform and GLFW
+    //
+    int window_w = 0;
+    int window_h = 0;
+
+    GLFWwindow *window = NULL;
+
+    glfwSetErrorCallback(glfw_error_callback);
+    if (!glfwInit())
+    {
+        fprintf(stderr, "[FAIL] - GLFW failed to initialize\n");
+        return EXIT_FAILURE;
+    }
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-    win = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Demo", NULL, NULL);
-    glfwMakeContextCurrent(win);
-    glfwGetWindowSize(win, &width, &height);
 
-    /* OpenGL */
-    if (gl3wInit()) {
-        fprintf(stderr, "Failed to setup gl3w\n");
-        exit(1);
-    }
-    glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+    char window_title[MAX_TITLE_LEN];
 
-    ctx = nk_glfw3_init(win, NK_GLFW3_INSTALL_CALLBACKS);
-    /* Load Fonts: if none of these are loaded a default font will be used  */
-    /* Load Cursor: if you uncomment cursor loading please hide the cursor */
-    {struct nk_font_atlas *atlas;
-    nk_glfw3_font_stash_begin(&atlas);
-    /*struct nk_font *droid = nk_font_atlas_add_from_file(atlas, "../../../extra_font/DroidSans.ttf", 14, 0);*/
-    /*struct nk_font *roboto = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Roboto-Regular.ttf", 14, 0);*/
-    /*struct nk_font *future = nk_font_atlas_add_from_file(atlas, "../../../extra_font/kenvector_future_thin.ttf", 13, 0);*/
-    /*struct nk_font *clean = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyClean.ttf", 12, 0);*/
-    /*struct nk_font *tiny = nk_font_atlas_add_from_file(atlas, "../../../extra_font/ProggyTiny.ttf", 10, 0);*/
-    /*struct nk_font *cousine = nk_font_atlas_add_from_file(atlas, "../../../extra_font/Cousine-Regular.ttf", 13, 0);*/
-    nk_glfw3_font_stash_end();
-    /*nk_style_load_all_cursors(ctx, atlas->cursors);*/
-    /*nk_style_set_font(ctx, &droid->handle);*/}
+    snprintf(window_title, sizeof(window_title), "[%s] - %s",
+             DEFAULT_WINDOW_PREFIX, "filename");
 
-    #ifdef INCLUDE_STYLE
-    /*set_style(ctx, THEME_WHITE);*/
-    /*set_style(ctx, THEME_RED);*/
-    /*set_style(ctx, THEME_BLUE);*/
-    /*set_style(ctx, THEME_DARK);*/
-    #endif
+    window = glfwCreateWindow(DEFAULT_WINDOW_W, DEFAULT_WINDOW_H,
+                              window_title, NULL, NULL);
 
-    bg.r = 0.10f, bg.g = 0.18f, bg.b = 0.24f, bg.a = 1.0f;
-    while (!glfwWindowShouldClose(win))
+    if (!window)
     {
-        /* Input */
+        fprintf(stderr, "[FAIL] - Unable to create the window\n");
+        return EXIT_FAILURE;
+    }
+
+    glfwMakeContextCurrent(window);
+    glfwGetWindowSize(window, &window_w, &window_h);
+
+    //
+    // OpenGL
+    //
+    if (gl3wInit())
+    {
+        fprintf(stderr, "[FAIL] - gl3w failed to initialize\n");
+        return EXIT_FAILURE;
+    }
+
+    glViewport(0, 0, DEFAULT_WINDOW_W, DEFAULT_WINDOW_H);
+
+    //
+    // Nuklear UI
+    //
+    struct nk_context *ctx = nk_glfw3_init(window, NK_GLFW3_INSTALL_CALLBACKS);
+    {
+        struct nk_font_atlas *atlas;
+        nk_glfw3_font_stash_begin(&atlas);
+        nk_glfw3_font_stash_end();
+    }
+
+    struct raster_display *display;
+    display = raster_display_init(ctx, window_w, window_h);
+
+    while (!glfwWindowShouldClose(window))
+    {
         glfwPollEvents();
         nk_glfw3_new_frame();
 
-        /* GUI */
-        if (nk_begin(ctx, "Demo", nk_rect(50, 50, 230, 250),
-            NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
-            NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE))
-        {
-            enum {EASY, HARD};
-            static int op = EASY;
-            static int property = 20;
-            nk_layout_row_static(ctx, 30, 80, 1);
-            if (nk_button_label(ctx, "button"))
-                fprintf(stdout, "button pressed\n");
+        display->w = window_w;
+        display->h = window_h;
 
-            nk_layout_row_dynamic(ctx, 30, 2);
-            if (nk_option_label(ctx, "easy", op == EASY)) op = EASY;
-            if (nk_option_label(ctx, "hard", op == HARD)) op = HARD;
+        raster_display_tick(display);
 
-            nk_layout_row_dynamic(ctx, 25, 1);
-            nk_property_int(ctx, "Compression:", 0, &property, 100, 10, 1);
+        //
+        // Nuklear UI drawing routines
+        //
+        raster_display_draw_dialog(display);
 
-            nk_layout_row_dynamic(ctx, 20, 1);
-            nk_label(ctx, "background:", NK_TEXT_LEFT);
-            nk_layout_row_dynamic(ctx, 25, 1);
-            if (nk_combo_begin_color(ctx, nk_rgb_cf(bg), nk_vec2(nk_widget_width(ctx),400))) {
-                nk_layout_row_dynamic(ctx, 120, 1);
-                bg = nk_color_picker(ctx, bg, NK_RGBA);
-                nk_layout_row_dynamic(ctx, 25, 1);
-                bg.r = nk_propertyf(ctx, "#R:", 0, bg.r, 1.0f, 0.01f,0.005f);
-                bg.g = nk_propertyf(ctx, "#G:", 0, bg.g, 1.0f, 0.01f,0.005f);
-                bg.b = nk_propertyf(ctx, "#B:", 0, bg.b, 1.0f, 0.01f,0.005f);
-                bg.a = nk_propertyf(ctx, "#A:", 0, bg.a, 1.0f, 0.01f,0.005f);
-                nk_combo_end(ctx);
-            }
-        }
-        nk_end(ctx);
+        //
+        // OpenGL Drawing stuff here...
+        //
 
-        /* -------------- EXAMPLES ---------------- */
-        #ifdef INCLUDE_CALCULATOR
-          calculator(ctx);
-        #endif
-        #ifdef INCLUDE_OVERVIEW
-          overview(ctx);
-        #endif
-        #ifdef INCLUDE_NODE_EDITOR
-          node_editor(ctx);
-        #endif
-        /* ----------------------------------------- */
-
-        /* Draw */
-        glfwGetWindowSize(win, &width, &height);
-        glViewport(0, 0, width, height);
+        //
+        // Rendering
+        //
+        glfwGetWindowSize(window, &window_w, &window_h);
+        glViewport(0, 0, window_w, window_h);
         glClear(GL_COLOR_BUFFER_BIT);
-        glClearColor(bg.r, bg.g, bg.b, bg.a);
-        /* IMPORTANT: `nk_glfw_render` modifies some global OpenGL state
-         * with blending, scissor, face culling, depth test and viewport and
-         * defaults everything back into a default state.
-         * Make sure to either a.) save and restore or b.) reset your own state after
-         * rendering the UI. */
+        glClearColor(1, 0, 0, 0);
+
         nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
-        glfwSwapBuffers(win);
+        glfwSwapBuffers(window);
     }
+
+    raster_display_free(display);
+
     nk_glfw3_shutdown();
     glfwTerminate();
-    return 0;
+
+    file_reader_free(reader);
+
+    return EXIT_SUCCESS;
 }

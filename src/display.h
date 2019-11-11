@@ -36,4 +36,5 @@ void raster_display_free (struct raster_display* display);
 
 void raster_display_draw_dialog (struct raster_display* display);
 void raster_display_draw (struct raster_display* display);
+
 void raster_display_tick (struct raster_display* display);
