@@ -72,6 +72,17 @@ main(int argc, char* argv[])
         {"help", no_argument,       0, 'h'}
     };
 
+    char window_title[MAX_TITLE_LEN];
+
+    int window_w = 0;
+    int window_h = 0;
+
+    GLFWwindow *window = NULL;
+
+    struct raster_display *display;
+    struct file_reader *reader;
+    struct nk_context *ctx;
+
     //
     // CLI arguments
     //
@@ -112,7 +123,7 @@ main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    struct file_reader *reader = file_reader_init(file_path, buffer_size);
+    reader = file_reader_init(file_path, buffer_size);
     if (!reader)
     {
         fprintf(stderr, "[FAIL] - Failed to read input file in argument\n");
@@ -122,11 +133,6 @@ main(int argc, char* argv[])
     //
     // Platform and GLFW
     //
-    int window_w = 0;
-    int window_h = 0;
-
-    GLFWwindow *window = NULL;
-
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
     {
@@ -140,8 +146,6 @@ main(int argc, char* argv[])
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
-
-    char window_title[MAX_TITLE_LEN];
 
     snprintf(window_title, sizeof(window_title), "[%s] - %s",
              DEFAULT_WINDOW_PREFIX, "filename");
@@ -172,14 +176,14 @@ main(int argc, char* argv[])
     //
     // Nuklear UI
     //
-    struct nk_context *ctx = nk_glfw3_init(window, NK_GLFW3_INSTALL_CALLBACKS);
+    ctx = nk_glfw3_init(window, NK_GLFW3_INSTALL_CALLBACKS);
+
     {
         struct nk_font_atlas *atlas;
         nk_glfw3_font_stash_begin(&atlas);
         nk_glfw3_font_stash_end();
     }
 
-    struct raster_display *display;
     display = raster_display_init(ctx, window_w, window_h);
 
     while (!glfwWindowShouldClose(window))
