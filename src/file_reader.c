@@ -1,9 +1,9 @@
-///
-/// This file is part of glraster.
-///
-/// \file parser.c
-/// \brief File parser for sample captures
-///
+/*!
+ *  This file is part of glraster.
+ *
+ *   \file parser.c
+ *   \brief File parser for sample captures
+ */
 
 #include <stdlib.h>
 #include <string.h>
@@ -90,13 +90,12 @@ file_reader_free (struct file_reader* parser)
 }
 
 void
-file_reader_tick (struct file_reader* parser)
+file_reader_tick (struct file_reader* parser, size_t offset)
 {
-    size_t offset = parser->file_offset + parser->buffer_size;
-    if (offset > parser->file_size)
+    parser->file_offset = offset + parser->buffer_size;
+    if (parser->file_offset >= parser->file_size)
     {
         parser->file_offset = parser->file_size - parser->buffer_size;
     }
-
     file_reader_read(parser);
 }

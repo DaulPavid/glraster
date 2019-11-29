@@ -1,9 +1,9 @@
-///
-/// This file is part of glraster.
-///
-/// \file file_reader.h
-/// \brief File reader for sample captures
-///
+/*!
+ *  This file is part of glraster.
+ *
+ *  \file file_reader.h
+ *  \brief File reader for sample captures
+ */
 
 #pragma once
 
@@ -33,4 +33,4 @@ struct file_reader
 struct file_reader* file_reader_init (const char* file_path, size_t buffer_size);
 
 void file_reader_free (struct file_reader* parser);
-void file_reader_tick (struct file_reader* parser);
+void file_reader_tick (struct file_reader* parser, size_t offset);

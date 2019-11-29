@@ -1,9 +1,9 @@
-///
-/// This file is part of glraster.
-///
-/// \file main.c
-/// \brief Main application and event loop
-///
+/*!
+ *  This file is part of glraster.
+ *
+ *  \file main.c
+ *  \brief Main application and event loop
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -208,18 +208,20 @@ main(int argc, char* argv[])
         raster_display_draw_dialog(display);
 
         //
-        // OpenGL Drawing stuff here...
+        // Drawing
         //
 
         //
         // Rendering
         //
         glfwGetWindowSize(window, &window_w, &window_h);
-        glViewport(0, 0, window_w, window_h);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glClearColor(1, 0, 0, 0);
 
-        nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+        raster_display_render(display);
+
+        nk_glfw3_render(NK_ANTI_ALIASING_ON,
+                        MAX_VERTEX_BUFFER,
+                        MAX_ELEMENT_BUFFER);
+
         glfwSwapBuffers(window);
     }
 
