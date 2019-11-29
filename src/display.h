@@ -13,9 +13,21 @@
 #define MAX_FRAME_LEN 1048576
 #define MAX_FRAME_BPS 1024
 
+#define SYM_BLOCK_SIZE 32
+
+struct shaders
+{
+    GLuint vert;
+    GLuint frag;
+
+    GLuint prog;
+};
+
 struct raster_display
 {
     struct nk_context* ctx;
+
+    struct shaders shader_info;
 
     int frame_length;
     int frame_offset;

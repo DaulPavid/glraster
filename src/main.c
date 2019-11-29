@@ -123,13 +123,6 @@ main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    reader = file_reader_init(file_path, buffer_size);
-    if (!reader)
-    {
-        fprintf(stderr, "[FAIL] - Failed to read input file in argument\n");
-        return EXIT_FAILURE;
-    }
-
     //
     // Platform and GLFW
     //
@@ -170,7 +163,6 @@ main(int argc, char* argv[])
         fprintf(stderr, "[FAIL] - gl3w failed to initialize\n");
         return EXIT_FAILURE;
     }
-
     glViewport(0, 0, DEFAULT_WINDOW_W, DEFAULT_WINDOW_H);
 
     //
@@ -185,6 +177,20 @@ main(int argc, char* argv[])
     }
 
     display = raster_display_init(ctx, window_w, window_h);
+    if (!display)
+    {
+        fprintf(stderr, "[FAIL] - Could not initialize raster display\n");
+        return EXIT_FAILURE;
+    }
+
+    reader = file_reader_init(file_path, buffer_size);
+    if (!reader)
+    {
+        fprintf(stderr, "[FAIL] - Failed to read input file in argument\n");
+        return EXIT_FAILURE;
+    }
+
+    fprintf(stdout, "[INFO] - Initialized program and display\n");
 
     while (!glfwWindowShouldClose(window))
     {
@@ -223,6 +229,8 @@ main(int argc, char* argv[])
     glfwTerminate();
 
     file_reader_free(reader);
+
+    fprintf(stdout, "[INFO] - Closed the program successfully\n");
 
     return EXIT_SUCCESS;
 }
