@@ -15,20 +15,25 @@
 
 static const char* raster_vert_shader =
     "#version 330 core\n"
-    "layout (location = 0) in vec3 i_pos;\n\n"
-    "layout (location = 1) in vec2 i_uv;\n"
-    "out vec2 o_uv;\n"
+    "layout (location = 0) in vec2 i_pos;\n\n"
+    "layout (location = 1) in float i_u;\n"
+    "out float o_u;\n"
     "void main() {\n"
-    "gl_Position = vec4(i_pos, 1.0);\n"
-    "o_uv = i_uv;\n"
+    "gl_Position = vec4(i_pos, 0.0, 1.0);\n"
+    "o_u = i_u;\n"
     "}";
 
 static const char* raster_frag_shader =
     "#version 330 core\n"
-    "in vec2 o_uv;\n"
-    "uniform sampler2D g_tex;\n"
+    "in float o_u;\n"
+    "uniform float total_size;\n"
+    "uniform float frame_size;\n"
+    "uniform float offset;\n"
+    "uniform sampler1D g_tex;\n"
     "void main() {\n"
-    "gl_FragColor = texture2D(g_tex, o_uv);\n"
+    "float x = (o_u * frame_size + offset) / total_size;\n"
+    "vec4 color = texture(g_tex, x);\n"
+    "gl_FragColor = vec4(color.x, color.x, color.x, 1.0);\n"
     "}";
 
 static void
@@ -42,10 +47,10 @@ quad_create (struct raster_display* display)
     glGenBuffers(1, &quad_info->vbo);
     GLfloat verts[] =
     {
-        -1.0f,  1.0f, 0.0f, 0.0f,
-         1.0f,  1.0f, 1.0f, 0.0f,
-         1.0f, -1.0f, 1.0f, 1.0f,
-        -1.0f, -1.0f, 0.0f, 1.0f,
+        -1.0f,  1.0f, 0.0f,
+         1.0f,  1.0f, 1.0f,
+         1.0f, -1.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f,
     };
 
     glBindBuffer(GL_ARRAY_BUFFER, quad_info->vbo);
@@ -64,15 +69,13 @@ quad_create (struct raster_display* display)
     GLint pos_attrib = glGetAttribLocation(display->shader_info.prog, "i_pos");
     glEnableVertexAttribArray(pos_attrib);
     glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, GL_FALSE,
-                          2*sizeof(GLfloat), 0);
+                          3*sizeof(GLfloat), 0);
 
-    GLint uv_attrib = glGetAttribLocation(display->shader_info.prog, "i_uv");
+    GLint uv_attrib = glGetAttribLocation(display->shader_info.prog, "i_u");
     glEnableVertexAttribArray(uv_attrib);
-    glVertexAttribPointer(uv_attrib, 2, GL_FLOAT, GL_FALSE,
-                          2*sizeof(GLfloat), 0);
+    glVertexAttribPointer(uv_attrib, 1, GL_FLOAT, GL_FALSE,
+                          3*sizeof(GLfloat), (GLvoid *) (2*sizeof(GLfloat)));
 
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 }
 
@@ -134,36 +137,48 @@ raster_display_shader_init (struct raster_display* display)
 }
 
 static void
-raster_display_tex_init (struct raster_display* display, int w, int h)
+raster_display_tex_init (struct raster_display* display, const char* data)
 {
     glGenTextures(1, &display->tex_info.id);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, display->tex_info.id);
+    glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16UI, w, h, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, NULL);
+    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB,
+                 display->frame_length,
+                 0, GL_RED, GL_UNSIGNED_BYTE, data);
 
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+    glBindTexture(GL_TEXTURE_1D, 0);
+}
 
-    display->tex_info.w = w;
-    display->tex_info.h = h;
+static void
+raster_display_tex_tick (struct raster_display* display, const char* data)
+{
+    glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
+    glTexSubImage1D(GL_TEXTURE_1D, 0, 0, display->frame_length,
+                    GL_RED, GL_UNSIGNED_BYTE, data);
+    glBindTexture(GL_TEXTURE_1D, 0);
 }
 
 struct raster_display*
-raster_display_init (struct nk_context* ctx, int w, int h)
+raster_display_init (struct nk_context* ctx,
+                     int w, int h,
+                     size_t file_size,
+                     size_t buffer_size)
 {
     struct raster_display *display = malloc(sizeof(struct raster_display));
 
     display->ctx = ctx;
 
-    display->frame_length = 32;
+    display->file_size = file_size;
+    display->file_offset = 0;
+    display->buffer_size = buffer_size;
+
+    display->frame_length = buffer_size;
     display->frame_offset = 0;
-    display->frame_count = 32;
 
     display->w = w;
     display->h = h;
@@ -173,7 +188,9 @@ raster_display_init (struct nk_context* ctx, int w, int h)
         return NULL;
     }
 
-    raster_display_tex_init(display, w, h);
+    raster_display_tex_init(display, NULL);
+
+    quad_create(display);
 
     return display;
 }
@@ -205,15 +222,15 @@ raster_display_draw_dialog (struct raster_display* display)
     {
         nk_layout_row_dynamic(ctx, 40, 1);
         nk_property_int(ctx, "Frame length:", 1, &display->frame_length,
-                        MAX_FRAME_LEN, 1, 1);
+                        display->buffer_size, 1, 1);
 
         nk_layout_row_dynamic(ctx, 40, 1);
-        nk_property_int(ctx, "Frame offset:", 0, &display->frame_offset,
-                        display->frame_length, 1, 1);
+        nk_property_int(ctx, "Frame offset:", 1, &display->frame_offset,
+                        display->buffer_size - display->frame_length, 1, 1);
 
         nk_layout_row_dynamic(ctx, 40, 1);
-        nk_property_int(ctx, "Frame count:", 1, &display->frame_count,
-                        MAX_FRAME_CNT, 1, 1);
+        nk_property_int(ctx, "File offset:", 0, &display->file_offset,
+                        display->file_size, 1, 1);
     }
     nk_end(ctx);
 }
@@ -221,15 +238,23 @@ raster_display_draw_dialog (struct raster_display* display)
 void
 raster_display_draw (struct raster_display* display, const char* data)
 {
-    glBindTexture(GL_TEXTURE_2D, display->tex_info.id);
+    raster_display_tex_tick(display, data);
+}
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
-                    display->frame_length, display->frame_count,
-                    GL_RGB, GL_UNSIGNED_BYTE, data);
 
-    glBindTexture(GL_TEXTURE_2D, 0);
+static void
+raster_display_tick (struct raster_display* display)
+{
+    GLint total_size = glGetUniformLocation(display->shader_info.prog,
+                                            "total_size");
+    GLint frame_size = glGetUniformLocation(display->shader_info.prog,
+                                            "frame_size");
 
-    quad_create(display);
+    GLint offset = glGetUniformLocation(display->shader_info.prog, "offset");
+
+    glUniform1f(total_size, display->buffer_size);
+    glUniform1f(frame_size, display->frame_length);
+    glUniform1f(offset, display->frame_offset);
 }
 
 void
@@ -240,16 +265,14 @@ raster_display_render (struct raster_display* display)
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(display->shader_info.prog);
 
+    raster_display_tick(display);
+
+    glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
+
     glBindVertexArray(display->quad_info.vao);
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
+    glBindTexture(GL_TEXTURE_1D, 0);
     glBindVertexArray(0);
-}
-
-void
-raster_display_tick (struct raster_display* display)
-{
-    struct nk_context *ctx = display->ctx;
-    struct nk_input *input = &ctx->input;
 }

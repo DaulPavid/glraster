@@ -14,14 +14,11 @@
 #include "file_reader.h"
 #include "display.h"
 
-// Program options
 #include <getopt.h>
 
-// OpenGL / GLFW
 #include "GL/gl3w.h"
 #include <GLFW/glfw3.h>
 
-// Nuklear UI
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
 #define NK_INCLUDE_STANDARD_VARARGS
@@ -40,7 +37,7 @@
 #define DEFAULT_WINDOW_W 1024
 #define DEFAULT_WINDOW_H 768
 
-#define DEFAULT_BUFFER_SIZE 512 * 1024;
+#define DEFAULT_BUFFER_SIZE 512;
 
 #define MAX_TITLE_LEN 128
 #define MAX_VERTEX_BUFFER 128 * 1024
@@ -83,9 +80,6 @@ main(int argc, char* argv[])
     struct file_reader *reader;
     struct nk_context *ctx;
 
-    //
-    // CLI arguments
-    //
     char file_path[MAX_FILE_LEN] = "\0";
 
     long int buffer_size = DEFAULT_BUFFER_SIZE;
@@ -123,9 +117,7 @@ main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    //
-    // Platform and GLFW
-    //
+    /* Platform and GLFW */
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
     {
@@ -141,7 +133,7 @@ main(int argc, char* argv[])
 #endif
 
     snprintf(window_title, sizeof(window_title), "[%s] - %s",
-             DEFAULT_WINDOW_PREFIX, "filename");
+             DEFAULT_WINDOW_PREFIX, file_path);
 
     window = glfwCreateWindow(DEFAULT_WINDOW_W, DEFAULT_WINDOW_H,
                               window_title, NULL, NULL);
@@ -155,9 +147,7 @@ main(int argc, char* argv[])
     glfwMakeContextCurrent(window);
     glfwGetWindowSize(window, &window_w, &window_h);
 
-    //
-    // OpenGL
-    //
+    /* OpenGL and gl3w */
     if (gl3wInit())
     {
         fprintf(stderr, "[FAIL] - gl3w failed to initialize\n");
@@ -165,9 +155,7 @@ main(int argc, char* argv[])
     }
     glViewport(0, 0, DEFAULT_WINDOW_W, DEFAULT_WINDOW_H);
 
-    //
-    // Nuklear UI
-    //
+    /* Nuklear UI */
     ctx = nk_glfw3_init(window, NK_GLFW3_INSTALL_CALLBACKS);
 
     {
@@ -176,17 +164,22 @@ main(int argc, char* argv[])
         nk_glfw3_font_stash_end();
     }
 
-    display = raster_display_init(ctx, window_w, window_h);
-    if (!display)
-    {
-        fprintf(stderr, "[FAIL] - Could not initialize raster display\n");
-        return EXIT_FAILURE;
-    }
-
     reader = file_reader_init(file_path, buffer_size);
     if (!reader)
     {
         fprintf(stderr, "[FAIL] - Failed to read input file in argument\n");
+        return EXIT_FAILURE;
+    }
+
+    fprintf(stdout, "[INFO] - Initially read %lu bytes into the buffer...\n",
+            reader->buffer_size);
+
+    display = raster_display_init(ctx, window_w, window_h,
+                                  reader->file_size,
+                                  reader->buffer_size);
+    if (!display)
+    {
+        fprintf(stderr, "[FAIL] - Could not initialize raster display\n");
         return EXIT_FAILURE;
     }
 
@@ -200,20 +193,15 @@ main(int argc, char* argv[])
         display->w = window_w;
         display->h = window_h;
 
-        raster_display_tick(display);
-
-        //
-        // Nuklear UI drawing routines
-        //
+        /* Nuklear UI drawing routines */
         raster_display_draw_dialog(display);
 
-        //
-        // Drawing
-        //
+        /* File IO and drawing */
+        file_reader_tick(reader, display->file_offset);
 
-        //
-        // Rendering
-        //
+        raster_display_draw(display, reader->buffer);
+
+        /* Rendering */
         glfwGetWindowSize(window, &window_w, &window_h);
 
         raster_display_render(display);

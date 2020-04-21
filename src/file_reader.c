@@ -36,7 +36,7 @@ file_reader_size (struct file_reader* parser)
     }
 
     parser->file_size = file_size;
-    return 0;
+    return file_size;
 }
 
 static int
@@ -78,6 +78,8 @@ file_reader_init (const char* file_path, size_t buffer_size)
     parser->buffer_size = MIN(buffer_size, MAX_BUFFER_SIZE);
     parser->buffer_size = MIN(parser->buffer_size, parser->file_size);
     parser->buffer = malloc(buffer_size);
+
+    file_reader_read(parser);
 
     return parser;
 }
