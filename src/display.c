@@ -16,22 +16,24 @@
 static const char* raster_vert_shader =
     "#version 330 core\n"
     "layout (location = 0) in vec2 i_pos;\n\n"
-    "layout (location = 1) in float i_u;\n"
-    "out float o_u;\n"
+    "layout (location = 1) in vec2 i_uv;\n"
+    "out vec2 o_uv;\n"
     "void main() {\n"
     "gl_Position = vec4(i_pos, 0.0, 1.0);\n"
-    "o_u = i_u;\n"
+    "o_uv = i_uv;\n"
     "}";
 
 static const char* raster_frag_shader =
     "#version 330 core\n"
-    "in float o_u;\n"
+    "in vec2 o_uv;\n"
     "uniform float total_size;\n"
     "uniform float frame_size;\n"
+    "uniform float frame_count;\n"
     "uniform float offset;\n"
     "uniform sampler1D g_tex;\n"
     "void main() {\n"
-    "float x = (o_u * frame_size + offset) / total_size;\n"
+    "float y = frame_size * floor(o_uv.y * frame_count);\n"
+    "float x = (y + o_uv.x * frame_size + offset) / total_size;\n"
     "vec4 color = texture(g_tex, x);\n"
     "gl_FragColor = vec4(color.x, color.x, color.x, 1.0);\n"
     "}";
@@ -47,10 +49,10 @@ quad_create (struct raster_display* display)
     glGenBuffers(1, &quad_info->vbo);
     GLfloat verts[] =
     {
-        -1.0f,  1.0f, 0.0f,
-         1.0f,  1.0f, 1.0f,
-         1.0f, -1.0f, 1.0f,
-        -1.0f, -1.0f, 0.0f,
+        -1.0f,  1.0f, 0.0f, 0.0f,
+         1.0f,  1.0f, 1.0f, 0.0f,
+         1.0f, -1.0f, 1.0f, 1.0f,
+        -1.0f, -1.0f, 0.0f, 1.0f,
     };
 
     glBindBuffer(GL_ARRAY_BUFFER, quad_info->vbo);
@@ -69,12 +71,12 @@ quad_create (struct raster_display* display)
     GLint pos_attrib = glGetAttribLocation(display->shader_info.prog, "i_pos");
     glEnableVertexAttribArray(pos_attrib);
     glVertexAttribPointer(pos_attrib, 2, GL_FLOAT, GL_FALSE,
-                          3*sizeof(GLfloat), 0);
+                          4*sizeof(GLfloat), 0);
 
-    GLint uv_attrib = glGetAttribLocation(display->shader_info.prog, "i_u");
+    GLint uv_attrib = glGetAttribLocation(display->shader_info.prog, "i_uv");
     glEnableVertexAttribArray(uv_attrib);
-    glVertexAttribPointer(uv_attrib, 1, GL_FLOAT, GL_FALSE,
-                          3*sizeof(GLfloat), (GLvoid *) (2*sizeof(GLfloat)));
+    glVertexAttribPointer(uv_attrib, 2, GL_FLOAT, GL_FALSE,
+                          4*sizeof(GLfloat), (GLvoid *) (2*sizeof(GLfloat)));
 
     glBindVertexArray(0);
 }
@@ -143,8 +145,7 @@ raster_display_tex_init (struct raster_display* display, const char* data)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
 
-    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB,
-                 display->frame_length,
+    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, display->frame_length,
                  0, GL_RED, GL_UNSIGNED_BYTE, data);
 
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -164,9 +165,7 @@ raster_display_tex_tick (struct raster_display* display, const char* data)
 }
 
 struct raster_display*
-raster_display_init (struct nk_context* ctx,
-                     int w, int h,
-                     size_t file_size,
+raster_display_init (struct nk_context* ctx, int w, int h, size_t file_size,
                      size_t buffer_size)
 {
     struct raster_display *display = malloc(sizeof(struct raster_display));
@@ -177,6 +176,7 @@ raster_display_init (struct nk_context* ctx,
     display->file_offset = 0;
     display->buffer_size = buffer_size;
 
+    display->frame_count = 1;
     display->frame_length = buffer_size;
     display->frame_offset = 0;
 
@@ -221,11 +221,14 @@ raster_display_draw_dialog (struct raster_display* display)
     if (nk_begin(ctx, "Options", nk_rect(50, 50, 300, 300), flags))
     {
         nk_layout_row_dynamic(ctx, 40, 1);
+        nk_property_int(ctx, "Frame count:", 1, &display->frame_count,
+                        display->h, 1, 1);
+
         nk_property_int(ctx, "Frame length:", 1, &display->frame_length,
                         display->buffer_size, 1, 1);
 
         nk_layout_row_dynamic(ctx, 40, 1);
-        nk_property_int(ctx, "Frame offset:", 1, &display->frame_offset,
+        nk_property_int(ctx, "Frame offset:", 0, &display->frame_offset,
                         display->buffer_size - display->frame_length, 1, 1);
 
         nk_layout_row_dynamic(ctx, 40, 1);
@@ -249,11 +252,14 @@ raster_display_tick (struct raster_display* display)
                                             "total_size");
     GLint frame_size = glGetUniformLocation(display->shader_info.prog,
                                             "frame_size");
+    GLint frame_count = glGetUniformLocation(display->shader_info.prog,
+                                             "frame_count");
 
     GLint offset = glGetUniformLocation(display->shader_info.prog, "offset");
 
     glUniform1f(total_size, display->buffer_size);
     glUniform1f(frame_size, display->frame_length);
+    glUniform1f(frame_count, display->frame_count);
     glUniform1f(offset, display->frame_offset);
 }
 

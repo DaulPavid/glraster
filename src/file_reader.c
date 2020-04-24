@@ -35,7 +35,7 @@ file_reader_size (struct file_reader* parser)
         return -1;
     }
 
-    parser->file_size = file_size;
+    parser->file_size = file_size - 1;
     return file_size;
 }
 

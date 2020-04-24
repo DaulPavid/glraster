@@ -42,6 +42,7 @@ struct raster_display
     int file_size;
     int file_offset;
 
+    int frame_count;
     int frame_length;
     int frame_offset;
 
