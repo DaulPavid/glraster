@@ -35,7 +35,7 @@ static const char* raster_frag_shader =
     "float y = frame_size * floor(o_uv.y * frame_count);\n"
     "float x = (y + o_uv.x * frame_size + offset) / total_size;\n"
     "vec4 color = texture(g_tex, x);\n"
-    "gl_FragColor = vec4(color.x, color.x, color.x, 1.0);\n"
+    "gl_FragColor = vec4(vec3(color.x), 1.0);\n"
     "}";
 
 static void
