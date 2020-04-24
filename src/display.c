@@ -233,7 +233,7 @@ raster_display_draw_dialog (struct raster_display* display)
 
         nk_layout_row_dynamic(ctx, 40, 1);
         nk_property_int(ctx, "File offset:", 0, &display->file_offset,
-                        display->file_size, 1, 1);
+                        display->file_size - display->buffer_size, 1, 1);
     }
     nk_end(ctx);
 }
