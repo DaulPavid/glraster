@@ -46,6 +46,8 @@ struct raster_display
     int frame_length;
     int frame_offset;
 
+    int unpack;
+
     int w;
     int h;
 };

@@ -11,13 +11,10 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "file_reader.h"
-#include "display.h"
-
 #include <getopt.h>
 
-#include "GL/gl3w.h"
-#include <GLFW/glfw3.h>
+#include "display.h"
+#include "file_reader.h"
 
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
@@ -171,7 +168,7 @@ main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
-    fprintf(stdout, "[INFO] - Initially read %lu bytes into the buffer...\n",
+    fprintf(stdout, "[INFO] - Initially read %lu bytes into the buffer\n",
             reader->buffer_size);
 
     display = raster_display_init(ctx, window_w, window_h,

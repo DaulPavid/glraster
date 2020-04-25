@@ -94,10 +94,15 @@ file_reader_free (struct file_reader* parser)
 void
 file_reader_tick (struct file_reader* parser, size_t offset)
 {
-    parser->file_offset = offset + parser->buffer_size;
-    if (parser->file_offset >= parser->file_size)
+    offset += parser->buffer_size;
+    if (offset >= parser->file_size)
     {
-        parser->file_offset = parser->file_size - parser->buffer_size;
+        offset = parser->file_size - parser->buffer_size;
     }
-    file_reader_read(parser);
+
+    if (parser->file_offset != offset)
+    {
+        parser->file_offset = offset;
+        file_reader_read(parser);
+    }
 }

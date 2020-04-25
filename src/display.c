@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "display.h"
+
 #include "nuklear.h"
 
 static const char* raster_vert_shader =
@@ -29,13 +30,21 @@ static const char* raster_frag_shader =
     "uniform float total_size;\n"
     "uniform float frame_size;\n"
     "uniform float frame_count;\n"
-    "uniform float offset;\n"
+    "uniform float frame_offset;\n"
+    "uniform bool unpack;\n"
     "uniform sampler1D g_tex;\n"
     "void main() {\n"
+    ""
     "float y = frame_size * floor(o_uv.y * frame_count);\n"
-    "float x = (y + o_uv.x * frame_size + offset) / total_size;\n"
-    "vec4 color = texture(g_tex, x);\n"
-    "gl_FragColor = vec4(vec3(color.x), 1.0);\n"
+    "float x = (y + o_uv.x * frame_size + frame_offset) / total_size;\n"
+    ""
+    "float color = texture(g_tex, x).x;\n"
+    "if (unpack) {\n"
+    "int bit_idx = int(mod(trunc(o_uv.x * frame_size * 8), 8));\n"
+    "color = float((int(color * 255.0f) >> bit_idx) & 1);\n"
+    "}\n"
+    ""
+    "gl_FragColor = vec4(vec3(color), 1.0);\n"
     "}";
 
 static void
@@ -145,8 +154,8 @@ raster_display_tex_init (struct raster_display* display, const char* data)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
 
-    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, display->frame_length,
-                 0, GL_RED, GL_UNSIGNED_BYTE, data);
+    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, display->frame_length, 0, GL_RED,
+                 GL_UNSIGNED_BYTE, data);
 
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -159,8 +168,8 @@ static void
 raster_display_tex_tick (struct raster_display* display, const char* data)
 {
     glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
-    glTexSubImage1D(GL_TEXTURE_1D, 0, 0, display->frame_length,
-                    GL_RED, GL_UNSIGNED_BYTE, data);
+    glTexSubImage1D(GL_TEXTURE_1D, 0, 0, display->frame_length, GL_RED,
+                    GL_UNSIGNED_BYTE, data);
     glBindTexture(GL_TEXTURE_1D, 0);
 }
 
@@ -220,20 +229,37 @@ raster_display_draw_dialog (struct raster_display* display)
 
     if (nk_begin(ctx, "Options", nk_rect(50, 50, 300, 300), flags))
     {
+        int max_frames = display->buffer_size / display->frame_length + 0.5f;
+        int max_frame_offset = display->buffer_size - display->frame_length;
+        int max_file_offset = display->file_size - display->buffer_size;
+
+        display->frame_count = NK_MIN(display->frame_count, max_frames);
+        display->frame_offset = NK_MIN(display->frame_offset, max_frame_offset);
+        display->file_offset = NK_MIN(display->file_offset, max_file_offset);
+
+        nk_layout_row_dynamic(ctx, 40, 1);
+        nk_label(ctx, "File and Frame Settings", NK_TEXT_CENTERED);
+
         nk_layout_row_dynamic(ctx, 40, 1);
         nk_property_int(ctx, "Frame count:", 1, &display->frame_count,
-                        display->h, 1, 1);
+                        max_frames, 1, 1);
 
         nk_property_int(ctx, "Frame length:", 1, &display->frame_length,
                         display->buffer_size, 1, 1);
 
         nk_layout_row_dynamic(ctx, 40, 1);
         nk_property_int(ctx, "Frame offset:", 0, &display->frame_offset,
-                        display->buffer_size - display->frame_length, 1, 1);
+                        max_frame_offset, 1, 1);
 
         nk_layout_row_dynamic(ctx, 40, 1);
         nk_property_int(ctx, "File offset:", 0, &display->file_offset,
-                        display->file_size - display->buffer_size, 1, 1);
+                        max_file_offset, 1, 1);
+
+        nk_layout_row_dynamic(ctx, 40, 1);
+        nk_label(ctx, "Display Settings", NK_TEXT_CENTERED);
+
+        nk_layout_row_dynamic(ctx, 25, 1);
+        nk_checkbox_label(ctx, "Unpack Bytes", &display->unpack);
     }
     nk_end(ctx);
 }
@@ -248,19 +274,19 @@ raster_display_draw (struct raster_display* display, const char* data)
 static void
 raster_display_tick (struct raster_display* display)
 {
-    GLint total_size = glGetUniformLocation(display->shader_info.prog,
-                                            "total_size");
-    GLint frame_size = glGetUniformLocation(display->shader_info.prog,
-                                            "frame_size");
-    GLint frame_count = glGetUniformLocation(display->shader_info.prog,
-                                             "frame_count");
+    GLuint prog = display->shader_info.prog;
+    GLint total_size = glGetUniformLocation(prog, "total_size");
 
-    GLint offset = glGetUniformLocation(display->shader_info.prog, "offset");
+    GLint frame_size   = glGetUniformLocation(prog, "frame_size");
+    GLint frame_count  = glGetUniformLocation(prog, "frame_count");
+    GLint frame_offset = glGetUniformLocation(prog, "frame_offset");
+    GLint unpack       = glGetUniformLocation(prog, "unpack");
 
-    glUniform1f(total_size, display->buffer_size);
-    glUniform1f(frame_size, display->frame_length);
-    glUniform1f(frame_count, display->frame_count);
-    glUniform1f(offset, display->frame_offset);
+    glUniform1f(total_size,   display->buffer_size);
+    glUniform1f(frame_size,   display->frame_length);
+    glUniform1f(frame_count,  display->frame_count);
+    glUniform1f(frame_offset, display->frame_offset);
+    glUniform1i(unpack,       display->unpack);
 }
 
 void
@@ -274,7 +300,6 @@ raster_display_render (struct raster_display* display)
     raster_display_tick(display);
 
     glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
-
     glBindVertexArray(display->quad_info.vao);
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
