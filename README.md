@@ -1,6 +1,6 @@
 # glraster
 
-OpenGL based symbol (or bit) raster for viewing frame structure from
+OpenGL based byte (or bit) raster for viewing frame structure from
 a binary file.
 
 ## Dependencies
