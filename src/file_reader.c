@@ -14,7 +14,7 @@
 static int
 file_reader_size (struct file_reader* parser)
 {
-    FILE *fp = fopen(parser->file_path, "rb");
+    FILE *fp = fopen(parser->file_path, "r");
     if (fp == NULL)
     {
         fprintf(stderr, "[FAIL] - Unable to read the file: %s\n",
@@ -35,7 +35,7 @@ file_reader_size (struct file_reader* parser)
         return -1;
     }
 
-    parser->file_size = file_size - 1;
+    parser->file_size = file_size;
     return file_size;
 }
 

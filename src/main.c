@@ -171,8 +171,7 @@ main(int argc, char* argv[])
     fprintf(stdout, "[INFO] - Initially read %lu bytes into the buffer\n",
             reader->buffer_size);
 
-    display = raster_display_init(ctx, window_w, window_h,
-                                  reader->file_size,
+    display = raster_display_init(ctx, window_w, window_h, reader->file_size,
                                   reader->buffer_size);
     if (!display)
     {
