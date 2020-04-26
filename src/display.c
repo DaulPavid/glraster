@@ -277,16 +277,16 @@ raster_display_tick (struct raster_display* display)
     GLuint prog = display->shader_info.prog;
     GLint total_size = glGetUniformLocation(prog, "total_size");
 
-    GLint frame_size   = glGetUniformLocation(prog, "frame_size");
-    GLint frame_count  = glGetUniformLocation(prog, "frame_count");
+    GLint frame_size = glGetUniformLocation(prog, "frame_size");
+    GLint frame_count = glGetUniformLocation(prog, "frame_count");
     GLint frame_offset = glGetUniformLocation(prog, "frame_offset");
-    GLint unpack       = glGetUniformLocation(prog, "unpack");
+    GLint unpack = glGetUniformLocation(prog, "unpack");
 
-    glUniform1f(total_size,   display->buffer_size);
-    glUniform1f(frame_size,   display->frame_length);
-    glUniform1f(frame_count,  display->frame_count);
+    glUniform1f(total_size, display->buffer_size);
+    glUniform1f(frame_size, display->frame_length);
+    glUniform1f(frame_count, display->frame_count);
     glUniform1f(frame_offset, display->frame_offset);
-    glUniform1i(unpack,       display->unpack);
+    glUniform1i(unpack, display->unpack);
 }
 
 void
