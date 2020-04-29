@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include <signal.h>
 #include <getopt.h>
 
 #include "display.h"
@@ -40,6 +41,14 @@
 #define MAX_VERTEX_BUFFER 128 * 1024
 #define MAX_ELEMENT_BUFFER 128 * 1024
 
+static sig_atomic_t interrupt_flag = 0;
+
+static void
+interrupt_handler(int flag)
+{
+    interrupt_flag = 1;
+}
+
 static void
 glfw_error_callback(int error_code, const char* msg)
 {
@@ -59,6 +68,8 @@ print_help()
 int
 main(int argc, char* argv[])
 {
+    signal(SIGINT, interrupt_handler);
+
     static struct option option_list[] =
     {
         {"file", required_argument, 0, 'f'},
@@ -207,6 +218,12 @@ main(int argc, char* argv[])
                         MAX_ELEMENT_BUFFER);
 
         glfwSwapBuffers(window);
+
+        if (interrupt_flag)
+        {
+            fprintf(stdout, "[INFO] - CTRL-C detected...\n");
+            break;
+        }
     }
 
     raster_display_free(display);
