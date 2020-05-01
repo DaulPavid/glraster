@@ -41,7 +41,7 @@ static const char* raster_frag_shader =
     ""
     "float color = texture(g_tex, x).x;\n"
     "if (unpack) {\n"
-    "    float step = ceil(frame_size * o_uv.x * 8.0f);\n"
+    "    float step = ceil(frame_size * o_uv.x * 8.0f) - 1.0f;\n"
     "    float bit_idx = mod(step, 8.0f);\n"
     "    color = floor(255.0f * color);\n"
     "    for (float i = 0; i < bit_idx; i++) {\n"
