@@ -238,7 +238,7 @@ raster_display_draw_dialog (struct raster_display* display)
     if (nk_begin(ctx, "Options", nk_rect(50, 50, 300, 300), flags))
     {
         int max_frames = display->buffer_size / display->frame_length + 0.5f;
-        int max_frame_length = NK_MIN(display->buffer_size, MAX_FRAME_LENGTH);
+        int max_frame_length = NK_MIN(display->buffer_size, MAX_FRAME_LENGTH - 1);
         int max_frame_offset = display->buffer_size - display->frame_length;
         int max_file_offset = display->file_size - display->buffer_size;
 
