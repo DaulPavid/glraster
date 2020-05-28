@@ -29,7 +29,7 @@ static const char* raster_vert_shader =
 static const char* raster_frag_shader =
     "#version 330 core\n"
     "in vec2 o_uv;\n"
-    "uniform float max_frame_length;\n"
+    "uniform float buffer_size;\n"
     "uniform float frame_length;\n"
     "uniform float frame_count;\n"
     "uniform float frame_offset;\n"
@@ -39,7 +39,7 @@ static const char* raster_frag_shader =
     ""
     "float y = frame_length * floor(o_uv.y * frame_count);\n"
     "float x = y + o_uv.x * frame_length + frame_offset;\n"
-    "x /= max_frame_length;\n"
+    "x /= buffer_size;\n"
     ""
     "float color = texture(g_tex, x).x;\n"
     "if (unpack) {\n"
@@ -47,7 +47,7 @@ static const char* raster_frag_shader =
     "    float bit_idx = mod(step, 8.0f);\n"
     "    color = floor(255.0f * color);\n"
     "    for (float i = 0; i < bit_idx; i++) {\n"
-    "        color = floor(color / 2.0f);\n"
+    "        color = floor(color) / 2.0f;\n"
     "    }\n"
     "    color = mod(color, 2.0f) > 0.0f ? 1.0f : 0.0f;\n"
     "}\n"
@@ -162,7 +162,7 @@ raster_display_tex_init (struct raster_display* display, const char* data)
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
 
-    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, MAX_FRAME_LENGTH, 0, GL_RED,
+    glTexImage1D(GL_TEXTURE_1D, 0, GL_RGB, display->buffer_size, 0, GL_RED,
                  GL_UNSIGNED_BYTE, data);
 
     glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -238,7 +238,7 @@ raster_display_draw_dialog (struct raster_display* display)
     if (nk_begin(ctx, "Options", nk_rect(50, 50, 300, 300), flags))
     {
         int max_frames = display->buffer_size / display->frame_length + 0.5f;
-        int max_frame_length = NK_MIN(display->buffer_size, MAX_FRAME_LENGTH - 1);
+        int max_frame_length = display->buffer_size;
         int max_frame_offset = display->buffer_size - display->frame_length;
         int max_file_offset = display->file_size - display->buffer_size;
 
@@ -284,14 +284,14 @@ static void
 raster_display_tick (struct raster_display* display)
 {
     GLuint prog = display->shader_info.prog;
-    GLint max_frame_length = glGetUniformLocation(prog, "max_frame_length");
+    GLint buffer_size = glGetUniformLocation(prog, "buffer_size");
 
     GLint frame_length = glGetUniformLocation(prog, "frame_length");
     GLint frame_count = glGetUniformLocation(prog, "frame_count");
     GLint frame_offset = glGetUniformLocation(prog, "frame_offset");
     GLint unpack = glGetUniformLocation(prog, "unpack");
 
-    glUniform1f(max_frame_length, MAX_FRAME_LENGTH);
+    glUniform1f(buffer_size, display->buffer_size);
     glUniform1f(frame_length, display->frame_length);
     glUniform1f(frame_count, display->frame_count);
     glUniform1f(frame_offset, display->frame_offset);
