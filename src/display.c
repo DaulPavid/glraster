@@ -176,8 +176,8 @@ static void
 raster_display_tex_tick (struct raster_display* display, const char* data)
 {
     glBindTexture(GL_TEXTURE_1D, display->tex_info.id);
-    glTexSubImage1D(GL_TEXTURE_1D, 0, 0, display->frame_length, GL_RED,
-                    GL_UNSIGNED_BYTE, data);
+    glTexSubImage1D(GL_TEXTURE_1D, 0, 0, display->buffer_size,
+                    GL_RED, GL_UNSIGNED_BYTE, data);
     glBindTexture(GL_TEXTURE_1D, 0);
 }
 
